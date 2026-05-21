@@ -26,17 +26,15 @@ if [ "$changed" = "1" ]; then
     chown -R node:node /paperclip
 fi
 
-# Always ensure /paperclip is writable by the node user. On Railway, the Volume is
-# mounted as root over the build-time directory, so the chown from the Dockerfile
-# does not persist. This is cheap when ownership is already correct.
+# Always ensure /paperclip is writable. On Railway, the Volume is mounted as root
+# over the build-time directory, so the chown from the Dockerfile does not persist.
+mkdir -p /paperclip/instances/default/logs
 chown -R node:node /paperclip 2>/dev/null || true
-mkdir -p /paperclip/instances/default/logs 2>/dev/null || true
-chown -R node:node /paperclip/instances 2>/dev/null || true
+chmod -R u+rwX,g+rwX,o+rX /paperclip 2>/dev/null || true
 
-# On platforms (e.g. Railway) where chown on the mounted volume is not permitted,
-# fall back to running as root rather than failing with EACCES on first write.
-if ! su -s /bin/sh node -c 'test -w /paperclip' 2>/dev/null; then
-    echo "WARN: /paperclip not writable by node user, falling back to root"
+# If RUN_AS_ROOT=1 or the mounted volume blocks chown (Railway), run as root.
+if [ "${RUN_AS_ROOT:-0}" = "1" ] || ! su -s /bin/sh node -c 'test -w /paperclip/instances/default/logs' 2>/dev/null; then
+    echo "INFO: running entrypoint as root (volume not writable by node user)"
     exec "$@"
 fi
 
