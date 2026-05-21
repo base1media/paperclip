@@ -26,4 +26,11 @@ if [ "$changed" = "1" ]; then
     chown -R node:node /paperclip
 fi
 
+# Always ensure /paperclip is writable by the node user. On Railway, the Volume is
+# mounted as root over the build-time directory, so the chown from the Dockerfile
+# does not persist. This is cheap when ownership is already correct.
+chown node:node /paperclip 2>/dev/null || true
+mkdir -p /paperclip/instances/default/logs
+chown -R node:node /paperclip/instances 2>/dev/null || true
+
 exec gosu node "$@"
